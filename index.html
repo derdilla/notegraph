@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Graph Visualization</title>
+  <!-- D3 for force-directed graph -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; font-family: sans-serif; }
+    #graph-container { position: relative; width: 100%; height: 100%; background: #f9f9f9; }
+    .node {
+      position: absolute;
+      padding: 8px;
+      border: 1px solid #333;
+      border-radius: 4px;
+      background: #fff;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+      cursor: pointer;
+      max-width: 200px;
+      transition: background 0.2s;
+    }
+    .node:hover { background: #f0f0f0; }
+    .node .details { display: none; margin-top: 4px; font-size: 0.9em; color: #444; }
+    .node.expanded .details { display: block; }
+    svg { position: absolute; top: 0; left: 0; }
+    .link { stroke: #999; stroke-opacity: 0.6; }
+  </style>
+</head>
+<body>
+  <div id="graph-container"></div>
+
+  <script>
+    // Configuration
+    const API_NODES = '/api/nodes';
+    const API_EDGES = '/api/edges';
+
+    // Renderers registry for descriptions (e.g. default text, typst integration)
+    const renderers = {
+      default: text => {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div;
+      },
+      // Stub for future typst renderer
+      typst: text => {
+        const div = document.createElement('div');
+        div.textContent = text; // TODO: Replace with actual typst rendering
+        return div;
+      }
+    };
+    let currentRenderer = 'default';
+
+    // Fetch nodes and edges, then initialize the graph
+    async function fetchData() {
+      try {
+        const [nodesRes, edgesRes] = await Promise.all([
+          fetch(API_NODES),
+          fetch(API_EDGES)
+        ]);
+        if (!nodesRes.ok || !edgesRes.ok) {
+          throw new Error('Failed to fetch data: ' + nodesRes.status + '/' + edgesRes.status);
+        }
+        const nodes = await nodesRes.json();
+        const edges = await edgesRes.json();
+        if (!Array.isArray(nodes) || !Array.isArray(edges)) {
+          throw new Error('Invalid data format');
+        }
+        initGraph(nodes, edges);
+      } catch (err) {
+        console.error(err);
+        const container = document.getElementById('graph-container');
+        container.innerHTML = `<div style="padding:20px;color:red;">Error loading graph: ${err.message}</div>`;
+      }
+    }
+
+    // Initialize force-directed graph with HTML node elements
+    function initGraph(nodes, edges) {
+      const container = document.getElementById('graph-container');
+      const { width, height } = container.getBoundingClientRect();
+
+      // SVG for links
+      const svg = d3.select(container)
+        .append('svg')
+        .attr('width', width)
+        .attr('height', height);
+
+      const link = svg.append('g')
+        .attr('class', 'links')
+        .selectAll('line')
+        .data(edges)
+        .enter().append('line')
+        .attr('class', 'link')
+        .attr('stroke-width', 1);
+
+      // Create HTML nodes
+      const nodeElems = nodes.map(node => {
+        const div = document.createElement('div');
+        div.className = 'node';
+        div.dataset.id = node.id;
+
+        // Title
+        const titleEl = document.createElement('div');
+        titleEl.style.fontWeight = 'bold';
+        titleEl.textContent = node.title;
+        div.appendChild(titleEl);
+
+        // Short description
+        const shortEl = document.createElement('div');
+        shortEl.appendChild(renderers[currentRenderer](node.short));
+        div.appendChild(shortEl);
+
+        // Details (collapsed by default)
+        const detailsEl = document.createElement('div');
+        detailsEl.className = 'details';
+        detailsEl.appendChild(renderers[currentRenderer](node.details));
+        div.appendChild(detailsEl);
+
+        // Toggle expansion on click
+        div.addEventListener('click', e => {
+          e.stopPropagation();
+          div.classList.toggle('expanded');
+        });
+
+        // Placeholder for future editing feature
+        // div.addEventListener('dblclick', () => enableEditing(node));
+
+        container.appendChild(div);
+        return { data: node, el: div };
+      });
+
+      // D3 force simulation
+      const simulation = d3.forceSimulation(nodes)
+        .force('link', d3.forceLink(edges).id(d => d.id).distance(150))
+        .force('charge', d3.forceManyBody().strength(-300))
+        .force('center', d3.forceCenter(width / 2, height / 2))
+        .on('tick', ticked);
+
+      // Drag behavior
+      const drag = d3.drag()
+        .on('start', event => {
+          if (!event.active) simulation.alphaTarget(0.3).restart();
+          event.subject.fx = event.subject.x;
+          event.subject.fy = event.subject.y;
+        })
+        .on('drag', event => {
+          event.subject.fx = event.x;
+          event.subject.fy = event.y;
+        })
+        .on('end', event => {
+          if (!event.active) simulation.alphaTarget(0);
+          event.subject.fx = null;
+          event.subject.fy = null;
+        });
+
+      // Associate drag with HTML elements
+      nodeElems.forEach(({ data, el }) => {
+        d3.select(el).call(drag).datum(data);
+      });
+
+      function ticked() {
+        // Update links
+        link
+          .attr('x1', d => d.source.x)
+          .attr('y1', d => d.source.y)
+          .attr('x2', d => d.target.x)
+          .attr('y2', d => d.target.y);
+
+        // Update node positions
+        nodeElems.forEach(({ el, data }) => {
+          const x = Math.max(0, Math.min(width - el.offsetWidth, data.x));
+          const y = Math.max(0, Math.min(height - el.offsetHeight, data.y));
+          el.style.transform = `translate(${x}px,${y}px)`;
+        });
+      }
+    }
+
+    // Future: function to enable editing of a node's contents
+    function enableEditing(node) {
+      // TODO: implement editing UI and API calls (e.g., PUT /api/nodes/:id)
+    }
+
+    // Kick off
+    fetchData();
+  </script>
+</body>
+</html>
