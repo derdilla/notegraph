@@ -20,11 +20,9 @@ async fn get_nodes(data: web::Data<Model>) -> impl Responder {
 }
 
 #[get("/api/edges")]
-async fn get_edges() -> impl Responder {
-    // TODO: Implement actual edge retrieval
-    let data: Vec<Vec<String>> = vec![];
+async fn get_edges(data: web::Data<Model>) -> impl Responder {
     HttpResponse::Ok()
-        .json(data)
+        .json(data.get_edges())
 }
 
 pub async fn start_server(data: Model) -> std::io::Result<()> {

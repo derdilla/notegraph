@@ -1,0 +1,9 @@
+WIP - this readme is aspirational
+
+notegraph
+---------
+Every note is an utf8 plaintext file at the top level of a directory. File names are in snake_case and represent the note title. Extensions `some_title(.typ|md)?` are not part of the title and get passed to the ui to use an appropriate renderer. The first line of each file is a short description. Description and title are always displayed in the graph, the remaining content is collapsed by default. The graph provides an editing option that updates the files. Notes can be versioned via git.
+
+implmentation
+---
+Local server hosts a html file for ui and handles edits and data parsing

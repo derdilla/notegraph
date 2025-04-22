@@ -1,6 +1,9 @@
 use std::fs::{self, DirEntry};
 
 use convert_case::Casing;
+use once_cell::sync::Lazy;
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use regex::Regex;
 use serde::Serialize;
 
 #[derive(Debug, Clone)]
@@ -29,6 +32,19 @@ impl Model {
     pub fn get_nodes(&self) -> Vec<Node> {
         self.nodes.clone()
     }
+
+    /// Determine all references between short and long descriptions of notes (really expensive).
+    pub fn get_edges(&self) -> Vec<Vec<String>> {
+        let mut res = Vec::new();
+        self.nodes.par_iter()
+            .map(|a| a
+                .get_connections()
+                .iter()
+                .map(|b| vec![a.id.to_string(), b.to_string()])
+                .collect::<Vec<Vec<String>>>())
+            .collect_into_vec(&mut res);
+        res.concat()
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -53,7 +69,24 @@ impl Node {
             short: short.trim().to_string(),
             long: long.trim().to_string(),
         })
-    } 
+    }
+
+    fn get_connections(&self) -> Vec<String> {
+        // TODO: ignore inside raw blocks (only run these regexes on strings ready to display)
+        // [id] without (): \[([\w_\s]*)\][^\(]
+        // [title](id) block: \[[^\]]*\]\(([\w\s_-]*)\)
+
+        static ID_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\[([\w_\s]*)\][^\(]").unwrap());
+        static TITLED_ID_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\[[^\]]*\]\(([\w\s_-]*)\)").unwrap());
+
+        ID_RE.captures_iter(&self.short)
+            .chain(ID_RE.captures_iter(&self.long))
+            .chain(TITLED_ID_RE.captures_iter(&self.short))
+            .chain(TITLED_ID_RE.captures_iter(&self.long))
+            .map(|e|e.get(1).expect("1 is non-optional group in regex"))
+            .map(|e| e.as_str().to_string())
+            .collect()
+    }
 }
 
 #[derive(Debug)]

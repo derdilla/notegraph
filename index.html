@@ -79,6 +79,11 @@
       const container = document.getElementById('graph-container');
       const { width, height } = container.getBoundingClientRect();
 
+      const linkEdgets = edges.map(([source, target]) => ({
+        source: source,
+        target: target
+      }));
+
       // SVG for links
       const svg = d3.select(container)
         .append('svg')
@@ -88,7 +93,7 @@
       const link = svg.append('g')
         .attr('class', 'links')
         .selectAll('line')
-        .data(edges)
+        .data(linkEdgets)
         .enter().append('line')
         .attr('class', 'link')
         .attr('stroke-width', 1);
@@ -131,7 +136,7 @@
 
       // D3 force simulation
       const simulation = d3.forceSimulation(nodes)
-        .force('link', d3.forceLink(edges).id(d => d.id).distance(150))
+        .force('link', d3.forceLink(linkEdgets).id(d => d.id).distance(150))
         .force('charge', d3.forceManyBody().strength(-300))
         .force('center', d3.forceCenter(width / 2, height / 2))
         .on('tick', ticked);
@@ -159,7 +164,8 @@
       });
 
       function ticked() {
-        // Update links
+        // Update connecting lines
+        // TODO: draw lines from the center of the closest side of each node. 
         link
           .attr('x1', d => d.source.x)
           .attr('y1', d => d.source.y)
