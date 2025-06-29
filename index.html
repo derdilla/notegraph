@@ -7,8 +7,20 @@
   <!-- D3 for force-directed graph -->
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <style>
-    body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; font-family: sans-serif; }
-    #graph-container { position: relative; width: 100%; height: 100%; background: #f9f9f9; }
+    body, html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      font-family: sans-serif;
+    }
+    #graph-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: #f9f9f9;
+    }
     .node {
       position: absolute;
       padding: 8px;
@@ -18,13 +30,28 @@
       box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
       cursor: pointer;
       max-width: 200px;
-      transition: background 0.2s;
     }
-    .node:hover { background: #f0f0f0; }
-    .node .details { display: none; margin-top: 4px; font-size: 0.9em; color: #444; }
-    .node.expanded .details { display: block; }
-    svg { position: absolute; top: 0; left: 0; }
-    .link { stroke: #999; stroke-opacity: 0.6; }
+    .node:hover {
+      background: #f0f0f0;
+    }
+    .node .details {
+      display: none;
+      margin-top: 4px;
+      font-size: 0.9em;
+      color: #444;
+    }
+    .node.expanded .details {
+      display: block;
+    }
+    svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    .link {
+      stroke: #999;
+      stroke-opacity: 0.6;
+    }
   </style>
 </head>
 <body>
